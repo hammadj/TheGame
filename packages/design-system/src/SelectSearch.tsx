@@ -3,10 +3,14 @@ import Select, { Props as SelectProps, Styles } from 'react-select';
 
 import { theme } from './theme';
 
-const selectStyles: Styles = {
+export const selectStyles: Styles = {
   menu: (styles) => ({
     ...styles,
-    background: theme.colors.purple[400],
+    background: theme.colors.dark,
+  }),
+  menuList: (styles) => ({
+    ...styles,
+    paddingTop: 0,
   }),
   noOptionsMessage: (styles) => ({
     ...styles,
@@ -16,9 +20,20 @@ const selectStyles: Styles = {
     ...styles,
     color: theme.colors.white,
   }),
+  group: (styles) => ({
+    ...styles,
+    paddingTop: 0,
+    paddingBottom: 0,
+  }),
   groupHeading: (styles) => ({
     ...styles,
     color: theme.colors.white,
+    background: theme.colors.purple[400],
+    paddingTop: theme.space['3'],
+    paddingBottom: theme.space['3'],
+    position: 'sticky',
+    top: 0,
+    borderRadius: theme.radii.md,
   }),
   option: (styles) => ({
     ...styles,
@@ -68,6 +83,7 @@ const selectStyles: Styles = {
     },
   }),
 };
+
 export const SelectSearch: React.FC<SelectProps> = (props) => (
   <Select styles={selectStyles} {...props} />
 );

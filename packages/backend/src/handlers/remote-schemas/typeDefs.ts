@@ -1,9 +1,21 @@
 import { gql } from 'graphql-request/dist';
 
 export const typeDefs = gql`
+  scalar uuid
+
   type Query {
     getBoxProfile(address: String): BoxProfile
     getDaoHausMemberships(memberAddress: String): [Member!]!
+    getBrightIdStatus(contextId: uuid): BrightIdStatus
+    getTokenBalances(address: String): TokenBalances
+    getTopPSeedHolders(limit: Int): [TokenBalances!]
+  }
+
+  type BrightIdStatus {
+    unique: Boolean!
+    app: String!
+    context: String!
+    contextIds: [String!]!
   }
 
   type BoxProfile {
@@ -16,6 +28,12 @@ export const typeDefs = gql`
     imageUrl: String
     coverImageUrl: String
     website: String
+    collectiblesFavorites: [CollectiblesFavorites!]
+  }
+
+  type CollectiblesFavorites {
+    address: String
+    tokenId: String
   }
 
   type Moloch {
@@ -23,8 +41,8 @@ export const typeDefs = gql`
     summoner: String!
     title: String
     version: String
-    totalShares: Int!
-    totalLoot: Int!
+    totalShares: String!
+    totalLoot: String!
   }
 
   type Member {
@@ -34,9 +52,15 @@ export const typeDefs = gql`
     molochAddress: String!
     memberAddress: String!
     delegateKey: String!
-    shares: Int!
-    loot: Int
+    shares: String!
+    loot: String
     exists: Boolean!
     kicked: Boolean
+  }
+
+  type TokenBalances {
+    id: ID!
+    seedBalance: String!
+    pSeedBalance: String!
   }
 `;

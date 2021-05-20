@@ -49,9 +49,7 @@ export const AllTypes = () => (
       </Text>
     </Box>
 
-    <Text fontFamily="mono" fontSize="sm" color="blueLight">
-      About me
-    </Text>
+    <Text textStyle="caption">About me</Text>
 
     <Box>
       <Text fontFamily="body" fontSize="2xl" fontWeight="bold">

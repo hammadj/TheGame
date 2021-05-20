@@ -1,23 +1,23 @@
-import { isNotNullOrUndefined } from '@metafam/utils';
+import { Constants, isNotNullOrUndefined } from '@metafam/utils';
 import bluebird from 'bluebird';
 import { Request, Response } from 'express';
 import fetch from 'node-fetch';
-import api from 'sourcecred';
+import {
+  AddressBookEntry,
+  SCAccountsData,
+  SCAlias,
+  sourcecred as sc,
+} from 'sourcecred';
 
 import {
-  Account_Constraint,
   AccountType_Enum,
+  Player_Account_Constraint,
   Player_Constraint,
-  Player_Rank_Enum,
+  Player_Insert_Input,
   Player_Update_Column,
 } from '../../../lib/autogen/hasura-sdk';
 import { client } from '../../../lib/hasuraClient';
-import { AddressBookEntry, SCAccountsData, SCAlias } from './types';
-
-const ACCOUNTS_FILE =
-  'https://raw.githubusercontent.com/MetaFam/XP/gh-pages/output/accounts.json';
-const ADDRESS_BOOK_FILE =
-  'https://raw.githubusercontent.com/MetaFam/TheSource/master/addressbook.json';
+import { computeRank } from '../../../lib/rankHelpers';
 
 const VALID_ACCOUNT_TYPES: Array<AccountType_Enum> = [
   AccountType_Enum.Ethereum,
@@ -27,9 +27,29 @@ const VALID_ACCOUNT_TYPES: Array<AccountType_Enum> = [
   AccountType_Enum.Twitter,
 ];
 
+const parseMergedIdentityId = (alias: SCAlias) => {
+  try {
+    const addressParts = sc.core.graph.NodeAddress.toParts(alias.address);
+
+    if (
+      addressParts[1].toUpperCase() === 'CORE' &&
+      addressParts[2].toUpperCase() === 'IDENTITY'
+    ) {
+      return addressParts[addressParts.length - 1];
+    }
+    return null;
+  } catch (e) {
+    console.log('Unable to parse merged identity: ', {
+      error: e.message,
+      alias,
+    });
+    return null;
+  }
+};
+
 const parseAlias = (alias: SCAlias) => {
   try {
-    const addressParts = api.core.graph.NodeAddress.toParts(alias.address);
+    const addressParts = sc.core.graph.NodeAddress.toParts(alias.address);
     const type = addressParts[1]?.toUpperCase() as AccountType_Enum;
 
     if (VALID_ACCOUNT_TYPES.indexOf(type) < 0) {
@@ -43,35 +63,26 @@ const parseAlias = (alias: SCAlias) => {
       identifier,
     };
   } catch (e) {
+    // eslint-disable-next-line no-console
     console.log('Unable to parse alias: ', { error: e.message, alias });
     return null;
   }
 };
-
-const RANKS = [
-  Player_Rank_Enum.Diamond,
-  Player_Rank_Enum.Platinum,
-  Player_Rank_Enum.Gold,
-  Player_Rank_Enum.Silver,
-  Player_Rank_Enum.Bronze,
-];
-
-const NUM_PLAYERS_PER_RANK = 10;
 
 export const migrateSourceCredAccounts = async (
   _: Request,
   res: Response,
 ): Promise<void> => {
   const accountsData: SCAccountsData = await (
-    await fetch(ACCOUNTS_FILE)
+    await fetch(Constants.SC_ACCOUNTS_FILE)
   ).json();
 
   const addressBook: AddressBookEntry[] = await (
-    await fetch(ADDRESS_BOOK_FILE)
+    await fetch(Constants.SC_ADDRESS_BOOK_FILE)
   ).json();
 
   const accountOnConflict = {
-    constraint: Account_Constraint.AccountIdentifierTypeKey,
+    constraint: Player_Account_Constraint.AccountIdentifierTypeKey,
     update_columns: [],
   };
 
@@ -80,9 +91,11 @@ export const migrateSourceCredAccounts = async (
     .sort((a, b) => b.totalCred - a.totalCred)
     .map((a, index) => {
       const linkedAccounts = a.account.identity.aliases
-        .map((alias) => {
-          return parseAlias(alias);
-        })
+        .map((alias) => parseAlias(alias))
+        .filter(isNotNullOrUndefined);
+
+      const mergedIdentityIds = a.account.identity.aliases
+        .map((alias) => parseMergedIdentityId(alias))
         .filter(isNotNullOrUndefined);
 
       const discordId = linkedAccounts.find(({ type }) => type === 'DISCORD')
@@ -90,15 +103,21 @@ export const migrateSourceCredAccounts = async (
 
       const addressEntry =
         discordId && addressBook.find((adr) => adr.discordId === discordId);
+
+      const rank = computeRank(index);
       return {
-        ethereum_address: addressEntry && addressEntry.address,
+        ethereum_address: addressEntry && addressEntry.address.toLowerCase(),
         scIdentityId: a.account.identity.id,
         username: a.account.identity.name.toLowerCase(),
         totalXp: a.totalCred,
-        rank: RANKS[Math.floor(index / NUM_PLAYERS_PER_RANK)],
+        rank,
         discordId,
+        mergedIdentityIds,
         Accounts: {
-          data: linkedAccounts,
+          // Omit the discord account, as that is updated directly on the player table
+          data: linkedAccounts.filter(
+            ({ type }) => type !== AccountType_Enum.Discord,
+          ),
           on_conflict: accountOnConflict,
         },
       };
@@ -114,12 +133,17 @@ export const migrateSourceCredAccounts = async (
           identityId: player.scIdentityId,
           rank: player.rank,
           totalXp: player.totalXp,
-          discordId: player.discordId || '',
+          discordId: player.discordId,
         };
+        if (player.mergedIdentityIds.length) {
+          await client.DeleteDuplicatePlayers({
+            scIds: player.mergedIdentityIds,
+          });
+        }
 
         try {
           const updateResult = await client.UpdatePlayer(vars);
-          const affected = updateResult.update_Player?.affected_rows;
+          const affected = updateResult.update_player?.affected_rows;
           if (affected === 0) {
             return player;
           }
@@ -127,7 +151,7 @@ export const migrateSourceCredAccounts = async (
             throw new Error('Multiple players updated incorrectly');
           }
 
-          const playerId = updateResult.update_Player?.returning[0]?.id;
+          const playerId = updateResult.update_player?.returning[0]?.id;
           if (playerId) {
             try {
               await client.UpsertAccount({
@@ -155,9 +179,15 @@ export const migrateSourceCredAccounts = async (
       },
       { concurrency: 10 },
     );
-    const usersToInsert = result
+    const usersToInsert: Player_Insert_Input[] = result
       .filter(isNotNullOrUndefined)
-      .map(({ discordId, ...user }) => user);
+      .map((player) => ({
+        username: player.username,
+        ethereum_address: player.ethereum_address,
+        sc_identity_id: player.scIdentityId,
+        rank: player.rank,
+        total_xp: player.totalXp,
+      }));
 
     const resultInsert = await client.UpsertPlayer({
       objects: usersToInsert,

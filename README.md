@@ -2,13 +2,19 @@
 
 Monorepo for the MetaGame applications, backend and databases.
 
+Project Board to find tasks / issues to work on: https://github.com/MetaFam/TheGame/projects/1
+
+## Guides
+
+If you're new to the MetaGame codebase, check out the following guides to learn how to contribute.
+
+- [Backend Guide](guides/BACKEND.md)
+
+- [Frontend Guide](guides/FRONTEND.md)
+
+- [C4 Guide](guides/C4.md)
+
 ## Development
-
-### Install Packages
-
-```shell script
-yarn
-```
 
 ### Bootstrap
 
@@ -16,6 +22,12 @@ Create your local .env file
 
 ```shell script
 cp .env.sample .env
+```
+
+### Install Packages
+
+```shell script
+yarn
 ```
 
 Initial TS Compilation For Monorepo Packages
@@ -57,20 +69,6 @@ If you want to locally start the backend server (not in Docker) for debugging pu
 yarn backend:dev
 ```
 
-Set this variable in the .env file:
-
-```
-BACKEND_HOST=host.docker.internal:4000
-```
-
-### Run web app (old)
-
-Once the backend services are started, we can start the frontend application
-
-```shell script
-yarn app:start
-```
-
 ### Run NextJS Web App dev mode (new)
 
 ```shell script
@@ -99,13 +97,14 @@ yarn hasura migrate apply --version "<squash-migration-version>" --skip-executio
 Generate GraphQL Types
 
 ```shell script
-yarn codegen generate
+yarn generate
 ```
 
 Reload Schema + Generate GraphQL Types (backend needs to be running)
 
 ```shell script
-yarn codegen update-schema
+yarn update-schema
+yarn generate
 ```
 
 ### Restart with fresh database

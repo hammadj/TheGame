@@ -1,16 +1,16 @@
-import BackgroundImage from 'assets/profile-background.jpg';
 import { FlexContainer, PageContainer } from 'components/Container';
 import { SetupHeader } from 'components/Setup/SetupHeader';
 import { useSetupFlow } from 'contexts/SetupContext';
 import React from 'react';
 
-export const SetupProfile: React.FC = () => {
-  const { step, screen, numTotalSteps, options } = useSetupFlow();
+export const SetupProfile: React.FC = ({ children }) => {
+  const { options, stepIndex } = useSetupFlow();
+
   return (
-    <PageContainer backgroundImage={`url(${BackgroundImage})`}>
-      {(step + 1) % numTotalSteps !== 0 && <SetupHeader />}
+    <PageContainer>
+      {options.numSteps - 1 > stepIndex && <SetupHeader />}
       <FlexContainer flex={1} pt={24}>
-        {options[step].screens[screen].component}
+        {children}
       </FlexContainer>
     </PageContainer>
   );

@@ -6,28 +6,66 @@ import {
   MetaButton,
   MetaHeading,
   Text,
+  useToast,
 } from '@metafam/ds';
 import { FlexContainer } from 'components/Container';
 import { useSetupFlow } from 'contexts/SetupContext';
+import { useUpdateProfileMutation } from 'graphql/autogen/types';
+import { useUser } from 'lib/hooks';
 import React, { useEffect, useState } from 'react';
 
-export const SetupAvailability: React.FC = () => {
-  const {
-    onNextPress,
-    nextButtonLabel,
-    availability,
-    setAvailability,
-  } = useSetupFlow();
+export type SetupAvailabilityProps = {
+  availability: string;
+  setAvailability: React.Dispatch<React.SetStateAction<string>>;
+};
+
+export const SetupAvailability: React.FC<SetupAvailabilityProps> = ({
+  availability,
+  setAvailability,
+}) => {
+  const { onNextPress, nextButtonLabel } = useSetupFlow();
+
   const [invalid, setInvalid] = useState(false);
+  const { user } = useUser({ redirectTo: '/' });
+  const toast = useToast();
+
   useEffect(() => {
     const value = Number(availability);
     setInvalid(value < 0 || value > 168);
   }, [availability]);
 
+  const [updateProfileRes, updateProfile] = useUpdateProfileMutation();
+  const [loading, setLoading] = useState(false);
+
+  const handleNextPress = async () => {
+    if (!user) return;
+
+    setLoading(true);
+    const { error } = await updateProfile({
+      playerId: user.id,
+      input: {
+        availability_hours: Number(availability),
+      },
+    });
+
+    if (error) {
+      toast({
+        title: 'Error',
+        description: 'Unable to update availability. The octo is sad 😢',
+        status: 'error',
+        isClosable: true,
+      });
+      setLoading(false);
+      return;
+    }
+
+    onNextPress();
+  };
+
   return (
     <FlexContainer>
       <MetaHeading mb={5} textAlign="center">
-        Availability
+        Avail&#xAD;ability
       </MetaHeading>
       <Text mb={10}>
         What is your weekly availability for any kind of freelance work?
@@ -51,7 +89,13 @@ export const SetupAvailability: React.FC = () => {
         <InputRightAddon background="purpleBoxDark">hr/week</InputRightAddon>
       </InputGroup>
 
-      <MetaButton onClick={onNextPress} mt={10}>
+      <MetaButton
+        onClick={handleNextPress}
+        mt={10}
+        isDisabled={invalid}
+        isLoading={updateProfileRes.fetching || loading}
+        loadingText="Saving"
+      >
         {nextButtonLabel}
       </MetaButton>
     </FlexContainer>

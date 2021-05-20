@@ -1,24 +1,32 @@
-import { MetaButton, MetaHeading, MetaTag, Text, Wrap } from '@metafam/ds';
+import {
+  MetaButton,
+  MetaHeading,
+  MetaTag,
+  Text,
+  Wrap,
+  WrapItem,
+} from '@metafam/ds';
 import { FlexContainer } from 'components/Container';
 import { useSetupFlow } from 'contexts/SetupContext';
-import { getMemberships } from 'graphql/getMemberships';
-import React, { useEffect } from 'react';
+import { Membership } from 'graphql/types';
+import React, { useState } from 'react';
 
 import { useWeb3 } from '../../lib/hooks';
 
-export const SetupMemberships: React.FC = () => {
-  const { address, isConnected } = useWeb3();
-  const {
-    onNextPress,
-    nextButtonLabel,
-    memberships,
-    setMemberships,
-  } = useSetupFlow();
-  useEffect(() => {
-    getMemberships(address).then((data) => {
-      setMemberships(data);
-    });
-  }, [address, setMemberships]);
+export type SetupMembershipsProps = {
+  memberships: Array<Membership> | null | undefined;
+  setMemberships: React.Dispatch<
+    React.SetStateAction<Array<Membership> | null | undefined>
+  >;
+};
+
+export const SetupMemberships: React.FC<SetupMembershipsProps> = ({
+  memberships,
+}) => {
+  const { isConnected } = useWeb3();
+  const { onNextPress, nextButtonLabel } = useSetupFlow();
+  const [loading, setLoading] = useState(false);
+
   return (
     <FlexContainer>
       <MetaHeading mb={5} textAlign="center">
@@ -44,9 +52,11 @@ export const SetupMemberships: React.FC = () => {
             </Text>
             <Wrap justify="center" mb={10} spacing={4} maxW="50rem">
               {memberships.map((member) => (
-                <MetaTag key={member.id} size="lg" fontWeight="normal">
-                  {member.moloch.title}
-                </MetaTag>
+                <WrapItem key={member.id}>
+                  <MetaTag size="lg" fontWeight="normal">
+                    {member.moloch.title}
+                  </MetaTag>
+                </WrapItem>
               ))}
             </Wrap>
           </>
@@ -55,7 +65,14 @@ export const SetupMemberships: React.FC = () => {
             We did not find any guilds associated with your account.
           </Text>
         ))}
-      <MetaButton onClick={onNextPress} mt={10}>
+      <MetaButton
+        onClick={() => {
+          setLoading(true);
+          onNextPress();
+        }}
+        mt={10}
+        isLoading={loading}
+      >
         {nextButtonLabel}
       </MetaButton>
     </FlexContainer>

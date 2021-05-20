@@ -7,45 +7,50 @@ import {
 } from '@metafam/ds';
 import { FlexContainer } from 'components/Container';
 import { useSetupFlow } from 'contexts/SetupContext';
-import React from 'react';
+import { Player_Type, useUpdateAboutYouMutation } from 'graphql/autogen/types';
+import { useUser } from 'lib/hooks';
+import React, { useState } from 'react';
 
-import { useUpdateAboutYouMutation } from '../../graphql/autogen/types';
-import { useUser } from '../../lib/hooks';
+export type SetupPlayerTypeProps = {
+  playerTypeChoices: Array<Player_Type>;
+  playerType: Player_Type | undefined;
+  setPlayerType: React.Dispatch<React.SetStateAction<Player_Type | undefined>>;
+};
 
-export const SetupPlayerType: React.FC = () => {
-  const {
-    onNextPress,
-    nextButtonLabel,
-    playerTypes,
-    playerType,
-    setPlayerType,
-    personalityType,
-  } = useSetupFlow();
+export const SetupPlayerType: React.FC<SetupPlayerTypeProps> = ({
+  playerTypeChoices,
+  playerType,
+  setPlayerType,
+}) => {
+  const { onNextPress, nextButtonLabel } = useSetupFlow();
   const { user } = useUser({ redirectTo: '/' });
   const toast = useToast();
 
   const [updateAboutYouRes, updateAboutYou] = useUpdateAboutYouMutation();
+  const [loading, setLoading] = useState(false);
 
   const handleNextPress = async () => {
     if (!user) return;
 
-    const { error } = await updateAboutYou({
-      playerId: user.id,
-      input: {
-        enneagram: personalityType?.name,
-        playerTypeId: playerType?.id,
-      },
-    });
-
-    if (error) {
-      console.warn(error);
-      toast({
-        title: 'Error',
-        description: 'Unable to update Player Account. The octo is sad 😢',
-        status: 'error',
-        isClosable: true,
+    setLoading(true);
+    if (user.player?.playerType?.id !== playerType?.id) {
+      const { error } = await updateAboutYou({
+        playerId: user.id,
+        input: {
+          player_type_id: playerType?.id,
+        },
       });
-      return;
+
+      if (error) {
+        toast({
+          title: 'Error',
+          description: 'Unable to update player type. The octo is sad 😢',
+          status: 'error',
+          isClosable: true,
+        });
+        setLoading(false);
+        return;
+      }
     }
 
     onNextPress();
@@ -61,7 +66,7 @@ export const SetupPlayerType: React.FC = () => {
         that suits you best.
       </Text>
       <SimpleGrid columns={[1, null, 3, 3]} spacing={4}>
-        {playerTypes.map((p) => (
+        {playerTypeChoices.map((p) => (
           <FlexContainer
             key={p.id}
             p={[4, null, 6]}
@@ -76,6 +81,7 @@ export const SetupPlayerType: React.FC = () => {
             cursor="pointer"
             onClick={() => setPlayerType(p)}
             align="stretch"
+            justify="flex-start"
             border="2px"
             borderColor={
               playerType && playerType.id === p.id
@@ -95,7 +101,7 @@ export const SetupPlayerType: React.FC = () => {
         onClick={handleNextPress}
         mt={10}
         isDisabled={!playerType}
-        isLoading={updateAboutYouRes.fetching}
+        isLoading={updateAboutYouRes.fetching || loading}
         loadingText="Saving"
       >
         {nextButtonLabel}

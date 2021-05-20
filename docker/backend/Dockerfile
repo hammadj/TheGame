@@ -10,10 +10,11 @@ ENV HASURA_GRAPHQL_ADMIN_SECRET metagame_secret
 COPY package.json .
 COPY lerna.json .
 COPY yarn.lock .
+COPY schema.graphql .
 COPY tsconfig.base.json .
 COPY packages/backend/*.json ./packages/backend/
 COPY packages/utils/*.json ./packages/utils/
-COPY packages/codegen/*.json ./packages/codegen/
+COPY packages/discord-bot/*.json ./packages/discord-bot/
 
 RUN yarn install --pure-lockfile
 
@@ -23,8 +24,8 @@ FROM base as build
 # Copy source files
 COPY packages/backend ./packages/backend/
 COPY packages/utils ./packages/utils/
+COPY packages/discord-bot ./packages/discord-bot/
 COPY packages/@types ./packages/@types/
-COPY packages/codegen ./packages/codegen/
 
 # Build
 RUN yarn backend:build

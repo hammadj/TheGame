@@ -1,6 +1,7 @@
 import { did } from '@metafam/utils';
 import { Request, Response } from 'express';
 
+import { defaultProvider } from '../../lib/ethereum';
 import { getOrCreatePlayer } from './users';
 
 const unauthorizedVariables = {
@@ -10,7 +11,10 @@ const unauthorizedVariables = {
 function getHeaderToken(req: Request): string | null {
   const authHeader = req.headers.authorization;
   if (!authHeader) return null;
-  const token = authHeader.replace('Bearer ', '');
+  if (authHeader.substring(0, 6) !== 'Bearer')
+    throw new Error('invalid token type');
+
+  const token = authHeader.replace('Bearer', '').trim();
   if (token.length === 0) return null;
   return token;
 }
@@ -19,12 +23,18 @@ export const authHandler = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const token = getHeaderToken(req);
+  let token;
+  try {
+    token = getHeaderToken(req);
+  } catch (_) {
+    res.status(401).send();
+    return;
+  }
 
   if (!token) {
     res.json(unauthorizedVariables);
   } else {
-    const claim = did.verifyToken(token);
+    const claim = await did.verifyToken(token, defaultProvider);
     if (!claim) {
       res.status(401).send();
       return;

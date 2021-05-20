@@ -1,17 +1,23 @@
-import { Button, ButtonProps } from '@chakra-ui/core';
+import { Button, ButtonProps } from '@chakra-ui/react';
 import React from 'react';
 
-export const MetaButton: React.FC<ButtonProps> = ({ children, ...props }) => (
+type LinkProps = { href?: string; target?: '_blank' };
+type RefProps = { ref?: React.Ref<HTMLButtonElement> };
+
+export const MetaButton: React.FC<
+  ButtonProps & LinkProps & RefProps
+> = React.forwardRef<HTMLButtonElement>(({ children, ...props }, ref) => (
   <Button
-    bgColor="purple.400"
-    _hover={{ bgColor: 'purple.500' }}
+    colorScheme="purple"
     textTransform="uppercase"
     px={12}
     letterSpacing="0.1em"
     size="lg"
     fontSize="sm"
+    bg="purple.400"
+    ref={ref}
     {...props}
   >
     {children}
   </Button>
-);
+));

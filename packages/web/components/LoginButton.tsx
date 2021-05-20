@@ -1,46 +1,87 @@
-import { Box, Button, HStack, MetaButton, Text } from '@metafam/ds';
+import {
+  Avatar,
+  Box,
+  Button,
+  CloseIcon,
+  HStack,
+  MetaButton,
+  SettingsIcon,
+  Spinner,
+  Text,
+} from '@metafam/ds';
 import { MetaLink } from 'components/Link';
-import { Web3Context } from 'contexts/Web3Context';
-import React, { useCallback, useContext } from 'react';
+import React, { useCallback } from 'react';
 
-const formatAddress = (address = '') =>
-  `${address.slice(0, 6)}...${address.slice(-4)}`;
+import { useUser, useWeb3 } from '../lib/hooks';
+import { getPlayerImage, getPlayerName } from '../utils/playerHelpers';
 
 export const LoginButton: React.FC = () => {
-  const { connectWeb3, disconnect, isConnected, address } = useContext(
-    Web3Context,
-  );
+  const {
+    address,
+    connectWeb3,
+    disconnect,
+    isConnected,
+    isConnecting,
+  } = useWeb3();
+
+  const { user, fetching } = useUser();
 
   const handleLoginClick = useCallback(async () => {
     await connectWeb3();
   }, [connectWeb3]);
 
-  return (
-    <Box>
-      {isConnected ? (
+  if (fetching || isConnecting) {
+    return <Spinner color="purple.500" size="sm" />;
+  }
+
+  if (isConnected) {
+    if (!user?.player) return null;
+
+    const hasEditedProfile = user.username && user.username !== address;
+
+    return (
+      <HStack>
+        <Avatar
+          src={getPlayerImage(user.player)}
+          name={getPlayerName(user.player)}
+          as={MetaLink}
+          href={`/player/${user.username}`}
+        />
         <Box>
-          <Text fontFamily="body" color="whiteAlpha.700">
-            {formatAddress(address)}
-          </Text>
+          <MetaLink
+            href={`/player/${user.username}`}
+            fontFamily="body"
+            color="whiteAlpha.700"
+          >
+            {user.player ? getPlayerName(user.player) : 'Unknown'}
+          </MetaLink>
           <HStack spacing={2}>
-            <MetaLink href="/profile/setup">Setup profile</MetaLink>
+            <MetaLink href="/profile/setup/username">
+              <Button
+                variant="link"
+                fontWeight="normal"
+                title={hasEditedProfile ? 'Edit profile' : 'Setup profile'}
+              >
+                <SettingsIcon w={7} h={7} color="cyan.400" />
+              </Button>
+            </MetaLink>
             <Text color="cyan.400">|</Text>
             <Button
               onClick={disconnect}
-              fontFamily="body"
-              color="cyan.400"
               variant="link"
               fontWeight="normal"
+              title="Disconnect"
             >
-              Disconnect
+              <CloseIcon w={6} h={6} color="cyan.400" />
             </Button>
           </HStack>
         </Box>
-      ) : (
-        <MetaButton size="md" px={8} onClick={handleLoginClick}>
-          Connect wallet
-        </MetaButton>
-      )}
-    </Box>
+      </HStack>
+    );
+  }
+  return (
+    <MetaButton size="md" px={8} onClick={handleLoginClick}>
+      Connect
+    </MetaButton>
   );
 };

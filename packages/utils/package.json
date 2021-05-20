@@ -13,11 +13,10 @@
     "precommit": "yarn lint-staged"
   },
   "dependencies": {
-    "ethers": "^5.0.8",
-    "js-base64": "^3.5.2",
-    "uuid": "^8.0.0"
-  },
-  "devDependencies": {
-    "@types/uuid": "^8.0.0"
+    "@types/uuid": "8.3.0",
+    "bignumber.js": "9.0.1",
+    "ethers": "5.1.4",
+    "js-base64": "3.6.0",
+    "uuid": "8.3.2"
   }
 }
